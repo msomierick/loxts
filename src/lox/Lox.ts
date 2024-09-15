@@ -4,6 +4,11 @@ import chalk from "chalk";
 import * as fs from "fs";
 import readline from "readline";
 import Scanner from "./Scanner.js";
+import Token from "./Token.js";
+import TokenType from "./TokenType.js";
+import Parser from "./Parser.js";
+import { Expr } from "./Expr.js";
+import { AstPrinter } from "./AstPrinter.js";
 
 const success = chalk.bold.green;
 const error = chalk.bold.red;
@@ -57,13 +62,32 @@ export default class Lox {
     const scanner = new Scanner(source);
     const tokens = scanner.scanTokens();
 
-    for (const token of tokens) {
-      console.log(success(token));
+    // for (const token of tokens) {
+    //   console.log(success(token));
+    // }
+
+    const parser: Parser = new Parser(tokens);
+    const expression: Expr | null = parser.parse();
+
+    if (this.hadError || !expression) {
+      return;
     }
+
+    const astPrinter: AstPrinter = new AstPrinter();
+    console.log(success(astPrinter.print(expression)));
   }
 
-  static error(line: number, message: string): void {
-    Lox.report(line, "", message);
+  static error(place: number | Token, message: string): void {
+    if (typeof place == "number") {
+      Lox.report(place, "", message);
+    }
+    if (place instanceof Token) {
+      if (place.type == TokenType.EOF) {
+        Lox.report(place.line, " at end", message);
+      } else {
+        Lox.report(place.line, " at '" + place.lexeme + "'", message);
+      }
+    }
   }
 
   private static report(line: number, where: string, message: string): void {
