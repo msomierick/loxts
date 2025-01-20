@@ -120,7 +120,7 @@ export default class Scanner {
         } else if (this.isAlpha(c)) {
           this.identifier();
         } else {
-          Lox.error(this.line, "Unexected character");
+          Lox.error(this.line, "Unexpected character");
         }
         break;
     }

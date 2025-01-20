@@ -71,7 +71,7 @@ export class Interpreter implements Visitor<unknown> {
     }
     return true;
   }
-  
+
   private isEqual(left: unknown, right: unknown): boolean {
     if (left == null && right == null) {
       return true;
