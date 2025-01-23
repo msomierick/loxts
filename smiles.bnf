@@ -1,0 +1,70 @@
+NOTE:
+We used the smiley grammar and asked Claude to remove the left recursion in the chain rule.
+
+<smiles> ::= <chain> <terminator>
+<chain> ::= <branched_atom> <connection>* 
+<connection> ::= <bond> <branched_atom>
+               | <dot> <branched_atom>
+               | <branched_atom>
+<branched_atom> ::= <atom> <ringbond>* <branch>*
+<bond> ::= "-" | "=" | "#" | "$" | ":" | "/" | "\\"
+<dot> ::= "."
+<atom> ::= <bracket_atom> | <organic_atom> | "_"
+<organic_atom> ::= <aliphatic_organic> | <aromatic_organic>
+<ringbond> ::= <bond>? <DIGIT> | <bond>? "%" <DIGIT> <DIGIT>
+<branch> ::= "(" <chain> ")" | "(" <bond> <chain> ")" | "(" <dot> <chain> ")"
+<bracket_atom> ::= "[" <isotope>? <symbol> <chiral>? <hcount>? <charge>? <class>? "]"
+<aliphatic_organic> ::= "B" | "C" | "N" | "O" | "S" | "P" | "F" | "Cl" | "Br" | "I"
+<aromatic_organic> ::= "b" | "c" | "n" | "o" | "s" | "p"
+<DIGIT> ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+<isotope> ::= <NUMBER>
+<symbol> ::= <element_symbols> | <aromatic_organic> | "se" | "as" | "*"
+<chiral> ::= "@" | "@@" | "@TH1" | "@TH2" | "@AL1" | "@AL2" | "@SP1" | "@SP2" | "@SP3" | "@TB1" | "@TB2" | "@TB3" | "@TB19" | "@TB20" | "@OH1" | "@OH2" | "@OH3" | "@OH29" | "@OH30"
+<hcount> ::= "H" | "H" <DIGIT>
+<charge> ::= "-" | "-" <DIGIT> | "+" | "+" <DIGIT>
+<class> ::= ":" <NUMBER>
+<NUMBER> ::= <DIGIT>+
+<element_symbols> ::= "H" | "He" | "Li" | "Be" | "B" | "C" | "N" | "O" | "F" | "Ne" | "Na" | "Mg" | "Al" | "Si" | "P" | "S" | "Cl" | "Ar" | "K" | "Ca" | "Sc" | "Ti" | "V" | "Cr" | "Mn" | "Fe" | "Co" | "Ni" | "Cu" | "Zn" | "Ga" | "Ge" | "As" | "Se" | "Br" | "Kr" | "Rb" | "Sr" | "Y" | "Zr" | "Nb" | "Mo" | "Tc" | "Ru" | "Rh" | "Pd" | "Ag" | "Cd" | "In" | "Sn" | "Sb" | "Te" | "I" | "Xe" | "Cs" | "Ba" | "Hf" | "Ta" | "W" | "Re" | "Os" | "Ir" | "Pt" | "Au" | "Hg" | "Tl" | "Pb" | "Bi" | "Po" | "At" | "Rn" | "Fr" | "Ra" | "Rf" | "Db" | "Sg" | "Bh" | "Hs" | "Mt" | "Ds" | "Rg" | "La" | "Ce" | "Pr" | "Nd" | "Pm" | "Sm" | "Eu" | "Gd" | "Tb" | "Dy" | "Ho" | "Er" | "Tm" | "Yb" | "Lu" | "Ac" | "Th" | "Pa" | "U" | "Np" | "Pu" | "Am" | "Cm" | "Bk" | "Cf" | "Es" | "Fm" | "Md" | "No" | "Lr"
+<terminator> ::= " " | "\t" | "\n" | "\r"
+
+// Token types for SMILES notation scanner
+enum TokenType {
+    // Atoms
+    ALIPHATIC_ORGANIC,    // B, C, N, O, S, P, F, Cl, Br, I
+    AROMATIC_ORGANIC,     // b, c, n, o, s, p, se, as
+    ELEMENT_SYMBOL,       // All periodic table elements
+    WILDCARD,            // _
+    
+    // Bonds
+    SINGLE_BOND,         // -
+    DOUBLE_BOND,         // =
+    TRIPLE_BOND,         // #
+    QUADRUPLE_BOND,      // $
+    AROMATIC_BOND,       // :
+    UP_BOND,            // /
+    DOWN_BOND,          // \
+    DOT,               // .
+    
+    // Structure
+    OPEN_BRACKET,       // [
+    CLOSE_BRACKET,      // ]
+    OPEN_BRANCH,        // (
+    CLOSE_BRANCH,       // )
+    
+    // Numbers
+    DIGIT,              // 0-9
+    NUMBER,             // Sequence of digits
+    
+    // Chirality
+    CHIRAL,             // @, @@, @TH1, etc.
+    
+    // Atom decorators
+    HCOUNT,             // H, H1, H2, etc.
+    CHARGE_POSITIVE,    // +, +1, +2, etc.
+    CHARGE_NEGATIVE,    // -, -1, -2, etc.
+    CLASS,              // :number
+    
+    // Special
+    TERMINATOR,         // whitespace, tab, newline, carriage return
+    EOF                 // End of input
+}

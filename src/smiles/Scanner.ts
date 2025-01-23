@@ -1,7 +1,5 @@
 export enum TokenType {
-  ATOM = "ATOM",
-  AROMATIC = "AROMATIC",
-  DIGIT = "DIGIT",
+  SYMBOL = "SYMBOL",
   BOND = "BOND",
   BRANCH_START = "BRANCH_START",
   BRANCH_END = "BRANCH_END",
@@ -27,9 +25,12 @@ export class SmilesScanner {
   private tokens: Token[] = [];
   private start: number = 0;
   private current: number = 0;
+  /*
+   * we use this to provide context aware scanning, to help us disambiguate properly
+   * scan bracketed atom components
+   */
   private inBracket: boolean = false;
 
-  // Define valid atom types according to OpenSMILES specification
   private organicAtoms = new Set([
     "B",
     "C",
@@ -42,8 +43,6 @@ export class SmilesScanner {
     "Br",
     "I",
   ]);
-
-  private aromaticAtoms = new Set(["b", "c", "n", "o", "p", "s"]);
 
   // All valid elements for bracketed atoms
   private elements = new Set([
@@ -167,43 +166,6 @@ export class SmilesScanner {
     "Og",
   ]);
 
-  private chiralitySymbols = new Set([
-    "@",
-    "@@",
-    "@TH1",
-    "@TH2",
-    "@AL1",
-    "@AL2",
-    "@SP1",
-    "@SP2",
-    "@SP3",
-    "@TB1",
-    "@TB2",
-    "@TB3",
-    "@TB4",
-    "@TB5",
-    "@TB6",
-    "@TB7",
-    "@TB8",
-    "@TB9",
-    "@TB10",
-    "@TB11",
-    "@TB12",
-    "@TB13",
-    "@TB14",
-    "@TB15",
-    "@TB16",
-    "@TB17",
-    "@TB18",
-    "@TB19",
-    "@TB20",
-    "@OH1",
-    "@OH2",
-    "@OH3",
-  ]);
-
-  private allElements = new Set([...this.organicAtoms, ...this.elements]);
-
   constructor(source: string) {
     this.source = source;
   }
@@ -265,37 +227,20 @@ export class SmilesScanner {
       case "-":
         if (this.inBracket) {
           this.start = this.current - 1;
-          if (this.isDigit(this.peek())) {
-            while (this.isDigit(this.peek())) this.advance();
-          }
+          while (this.isDigit(this.peek())) this.advance();
           this.addToken(TokenType.CHARGE);
         } else {
           this.addToken(TokenType.BOND);
         }
         break;
       case "+":
-        if (this.isDigit(this.peek())) {
-          while (this.isDigit(this.peek())) this.advance();
-        }
+        while (this.isDigit(this.peek())) this.advance();
         this.addToken(TokenType.CHARGE);
         break;
       case "%":
-        // Handle two-digit ring numbers
-        if (this.isDigit(this.peek())) {
-          this.start = this.current - 1;
-          // Must consume exactly two digits
-          this.advance();
-          if (this.isDigit(this.peek())) {
-            this.advance();
-            this.addToken(TokenType.RING_NUMBER);
-          } else {
-            throw new Error(
-              `Two-digit ring number expected after % at position ${this.start}`
-            );
-          }
-        } else {
-          throw new Error(`Digit expected after % at position ${this.current}`);
-        }
+        this.start = this.current - 1;
+        while (this.isDigit(this.peek())) this.advance();
+        this.addToken(TokenType.RING_NUMBER);
         break;
       case " ":
       case "\r":
@@ -333,7 +278,6 @@ export class SmilesScanner {
     // Advance after consuming atom
     this.advance();
 
-    console.log("Checking chirality");
     // 3. Chirality (optional)
     if (this.peek() === "@") {
       this.start = this.current;
@@ -351,43 +295,25 @@ export class SmilesScanner {
           this.advance();
         }
       }
-
-      const chiralityValue = this.source.substring(this.start, this.current);
-      if (this.chiralitySymbols.has(chiralityValue)) {
-        this.addToken(TokenType.CHIRALITY);
-      } else {
-        throw new Error(
-          `Invalid chirality symbol ${chiralityValue} at position ${this.start}`
-        );
-      }
+      this.addToken(TokenType.CHIRALITY);
     }
 
-    console.log("Checking hydrogen count");
     // 4. Hydrogen count (optional)
     if (this.peek() === "H") {
       this.start = this.current;
       this.advance(); // consume H
 
-      if (this.isDigit(this.peek())) {
-        while (this.isDigit(this.peek())) this.advance();
-      }
+      while (this.isDigit(this.peek())) this.advance(); // consume hcount digits
 
       this.addToken(TokenType.HCOUNT);
     }
 
-    console.log("Checking charge");
     // 5. Charge (optional)
     if (this.peek() === "+" || this.peek() === "-") {
       this.start = this.current;
-      const chargeSign = this.advance();
+      this.advance(); // consume charge sign
 
-      if (this.isDigit(this.peek())) {
-        while (this.isDigit(this.peek())) this.advance();
-      } else if (this.peek() === chargeSign) {
-        while (this.peek() === chargeSign) {
-          this.advance();
-        }
-      }
+      while (this.isDigit(this.peek())) this.advance(); // consume charge digits
 
       this.addToken(TokenType.CHARGE);
     }
@@ -397,22 +323,8 @@ export class SmilesScanner {
       this.start = this.current;
       this.advance(); // consume :
 
-      if (!this.isDigit(this.peek())) {
-        throw new Error(
-          `Expected class number after ':' at position ${this.current}`
-        );
-      }
-
       while (this.isDigit(this.peek())) this.advance();
       this.addToken(TokenType.CLASS);
-    }
-
-    if (this.peek() !== "]") {
-      throw new Error(
-        `Expected closing bracket ']' at position ${
-          this.current
-        }, found '${this.peek()}'`
-      );
     }
   }
 
@@ -421,7 +333,7 @@ export class SmilesScanner {
 
     if (firstChar === "*") {
       // Handle wildcard atom
-      this.addToken(TokenType.ATOM);
+      this.addToken(TokenType.SYMBOL);
       return;
     }
 
@@ -433,48 +345,13 @@ export class SmilesScanner {
         (!this.inBracket && this.organicAtoms.has(possibleElement))
       ) {
         this.advance(); // consume second character
-        this.addToken(TokenType.ATOM);
+        this.addToken(TokenType.SYMBOL);
         return;
       }
     }
 
-    // If not a two-character atom, check single character
-    if (this.isLowerAlpha(firstChar)) {
-      // Aromatic atom
-      if (!this.aromaticAtoms.has(firstChar)) {
-        throw new Error(
-          `Invalid aromatic atom '${firstChar}' at position ${this.start}`
-        );
-      }
-      this.addToken(TokenType.AROMATIC);
-    } else if (this.isUpperAlpha(firstChar)) {
-      // Aliphatic atom
-      if (this.inBracket) {
-        // In brackets, any element is allowed
-        if (!this.allElements.has(firstChar)) {
-          throw new Error(
-            `Invalid element '${firstChar}' at position ${this.start}`
-          );
-        }
-      } else {
-        // Outside brackets, only organic subset is allowed
-        if (!this.organicAtoms.has(firstChar)) {
-          throw new Error(
-            `Invalid organic atom '${firstChar}' at position ${this.start}`
-          );
-        }
-      }
-      this.addToken(TokenType.ATOM);
-    } else {
-      throw new Error(
-        `Invalid atom character '${firstChar}' at position ${this.start}`
-      );
-    }
-  }
-
-  private number(): void {
-    while (this.isDigit(this.peek())) this.advance();
-    this.addToken(TokenType.DIGIT);
+    // If not a two-character atom, add single character
+    this.addToken(TokenType.SYMBOL);
   }
 
   private isAtEnd(): boolean {
@@ -488,11 +365,6 @@ export class SmilesScanner {
   private peek(): string {
     if (this.isAtEnd()) return "\0";
     return this.source.charAt(this.current);
-  }
-
-  private peekNext(): string {
-    if (this.current + 1 >= this.source.length) return "\0";
-    return this.source.charAt(this.current + 1);
   }
 
   private addToken(type: TokenType): void {
