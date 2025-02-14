@@ -12,6 +12,7 @@ export enum TokenType {
   CHARGE = "CHARGE",
   CLASS = "CLASS",
   EOF = "EOF",
+  DOT = "DOT",
 }
 
 export interface Token {

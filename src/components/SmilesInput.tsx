@@ -1,9 +1,11 @@
 import * as React from "react";
 
 import { drawSmilesSvg } from "../service/drawSmilesSvg";
-import { scanTokens } from "../service/scanTokens";
+import { parseTokens, scanTokens } from "../service/scanTokens";
+import { Token } from "../smiles/Scanner";
 
 export const SmilesInput = () => {
+  const [tokens, setTokens] = React.useState<Token[]>([]);
   const handleSmilesForm = (e) => {
     console.log("");
     // Prevent the browser from reloading the page
@@ -18,7 +20,9 @@ export const SmilesInput = () => {
     console.log(formJson);
 
     drawSmilesSvg(formJson.smilesInput as string);
-    scanTokens(formJson.smilesInput as string);
+    const tokens = scanTokens(formJson.smilesInput as string);
+    setTokens(tokens);
+    parseTokens(tokens);
   };
 
   return (
@@ -33,6 +37,15 @@ export const SmilesInput = () => {
         </button>
         <button type="submit">Submit form</button>
       </form>
+      {tokens.length > 0 && (
+        <ul>
+          {tokens.map((token) => (
+            <li key={token.position}>
+              {token.value} - {token.type} - {token.position}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 };

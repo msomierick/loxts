@@ -1,3 +1,4 @@
+import { Parser } from "../smiles/Parser";
 import { SmilesScanner, Token } from "../smiles/Scanner";
 
 const testCases = [
@@ -33,4 +34,10 @@ export function scanTokens(source: string): Token[] {
   const tokens = scanner.scanTokens();
   console.log(tokens);
   return tokens;
+}
+
+export function parseTokens(tokens: Token[]) {
+  const parser = new Parser(tokens);
+  parser.parse();
+  console.log("parsed successfully");
 }
